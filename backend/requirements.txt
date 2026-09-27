@@ -1,0 +1,41 @@
+# FastAPI & Server
+fastapi==0.109.2
+uvicorn[standard]==0.27.1
+python-multipart==0.0.9
+
+# Database
+sqlalchemy[asyncio]==2.0.27
+asyncpg==0.29.0
+alembic==1.13.1
+
+# Auth
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# Validation & Settings
+pydantic[email]==2.6.1
+pydantic-settings==2.1.0
+
+# HTTP Client (for tests)
+httpx==0.26.0
+
+# Rate Limiting
+redis==5.0.1
+
+# Testing
+pytest
+pytest-asyncio
+pytest-cov
+fakeredis
+openapi-spec-validator
+aiosqlite
+aiosqlite
+
+# Certificates (PDF + Ed25519 signatures)
+reportlab==4.2.5
+cryptography>=42
+
+# Utilities
+python-dotenv==1.0.1
+python-dateutil==2.8.2

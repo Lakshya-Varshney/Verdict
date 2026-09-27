@@ -1,0 +1,69 @@
+# --- secrets / local env ---
+.env
+.env.*
+!.env.example
+backend/.env
+backend/.env.*
+!backend/.env.example
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# --- Python (backend) ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+.venv/
+venv/
+env/
+pip-wheel-metadata/
+
+# --- Alembic-generated local artifacts (not migration files themselves) ---
+backend/*.db
+backend/*.sqlite3
+
+# --- Node / Next.js (frontend) ---
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.turbo/
+frontend/next-env.d.ts
+frontend/*.tsbuildinfo
+frontend/coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# --- Playwright (frontend e2e scripts) ---
+frontend/playwright-report/
+frontend/test-results/
+frontend/.playwright/
+
+# --- Docker / local data volumes ---
+**/pgdata/
+**/redisdata/
+*.pid
+
+# --- Editors / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- scratch / generated locally, not part of the submission ---
+*.log
+*.tmp

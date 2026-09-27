@@ -1,0 +1,137 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dogfood
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/dogfood
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: your-super-secret-key-change-in-production
+      CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      SEED_ON_STARTUP: "true"
+      FIXTURES_PATH: /data/fixtures.json
+      # local demo: let webhooks reach receivers on this machine / private network. Leave OFF (default) in production:
+      # it is the SSRF guard. Link-local / cloud-metadata targets are refused either way.
+      WEBHOOK_ALLOW_PRIVATE_TARGETS: "true"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./fixtures.json:/data/fixtures.json:ro
+
+  test-db:
+    # Throwaway Postgres for the test profile. tmpfs => nothing persists, and it shares no
+    # volume/host port with the dev `db` service, so tests can never touch dev data.
+    profiles: ["test"]
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dogfood
+      POSTGRES_HOST_AUTH_METHOD: trust
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  test:
+    # Destructive pipeline (drops/recreates DBs, regenerates the migration). It only ever talks
+    # to `test-db`, never the dev `db`. Run explicitly with: docker compose run --rm test
+    profiles: ["test"]
+    build: ./backend
+    environment:
+      PGHOST: test-db
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@test-db:5432/dogfood
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@test-db:5432/dogfood_test
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: test-secret-key
+      SEED_ON_STARTUP: "false"
+    depends_on:
+      test-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    entrypoint: ["sh", "scripts/test-pipeline.sh"]
+
+  pytest:
+    # Just the test suite against real Postgres (no migration regeneration).
+    #   docker compose run --rm pytest [pytest args]
+    profiles: ["test"]
+    build: ./backend
+    environment:
+      PGHOST: test-db
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@test-db:5432/dogfood
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@test-db:5432/dogfood_test
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: test-secret-key
+      SEED_ON_STARTUP: "false"
+    depends_on:
+      test-db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - ./fixtures.json:/data/fixtures.json:ro
+    entrypoint:
+      - sh
+      - -c
+      - 'PGPASSWORD=postgres psql -h test-db -U postgres -d postgres -c "DROP DATABASE IF EXISTS dogfood_test;" -c "CREATE DATABASE dogfood_test;" && exec python -m pytest tests/ -v --tb=short "$$@"'
+      - --
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_MOCK: "false"
+        NEXT_PUBLIC_API_URL: /api
+        API_INTERNAL_URL: http://api:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
