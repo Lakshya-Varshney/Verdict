@@ -1,0 +1,25 @@
+# .dogfood.toml - DOGFOOD 2026 acceptance config (checked by run.py)
+# Run:  docker compose up -d && python3 run.py .dogfood.toml > acceptance-report.txt
+#
+# [auth] and [routes] are printed verbatim by the API container at boot (look for
+# "DOGFOOD CHECKER IDENTITIES" in `docker compose logs api`). Ids and tokens are
+# deterministic, so they are identical on every boot / clean clone.
+
+[portal]
+base_url = "http://localhost:8000"
+
+[tiers]
+claimed = ["T1", "T2"]
+pitch = "DOGFOOD: a FastAPI + Postgres hackathon platform with per-event role enforcement, weighted rubric scoring with per-judge z-score normalisation, and audit logging."
+
+[auth]
+organizer   = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1ODE0YjhhNy1lOGI0LTViY2UtYTc0MS1kYTNjZDhlODUwZmYiLCJlbWFpbCI6Im9yZ2FuaXplckBkb2dmb29kaGFjay5jb20iLCJleHAiOjQxMDI0NDQ4MDB9.7xtRZjwBF9pk4xMno9dn2rqnVwL66AZOYsa2coAT-H0"
+judge_a     = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkNjIwYWU4OS0yYjcwLTU5ZjgtYjQ4NC0zYWZjNmUzNDNlNDAiLCJlbWFpbCI6InRvbWFzLnZhcmdhQGV4YW1wbGUub3JnIiwiZXhwIjo0MTAyNDQ0ODAwfQ.ofQ58u0YV19fhz65BY-Jw6YKszapG2DQRWPOmdxSTvk"
+judge_b     = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIwZjQwNDBkMy0wYTJjLTU0NmQtOGY1Mi1lZTA2Yzc2NjU0ZTgiLCJlbWFpbCI6IndlaS5saW5kcXZpc3RAZXhhbXBsZS5vcmciLCJleHAiOjQxMDI0NDQ4MDB9.EEuTsOEyW4UGCIkaIIFM7mJQTNoVgb2lycHGzkQdz2M"
+participant = "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxY2Y1MGVmOS0yMzQzLTU5MTgtYjg5OS0yZDlkZTVhNWZmODkiLCJlbWFpbCI6InBhcnRpY2lwYW50MUBkb2dmb29kaGFjay5jb20iLCJleHAiOjQxMDI0NDQ4MDB9.f3_ZdnFD2RmH6obwjk1JiI9jqjcWJoLSMJUEqTNFZoY"
+[routes]
+gallery      = "/events/43c3b68e-0616-5f66-b998-56217b678279/submissions"
+submit       = "/teams/e32dd4dd-b305-5bb5-b780-e2b073d2a266/submissions"
+judge_scores = "/submissions/39dba4c4-ee64-5363-bdce-ea43f834ab53/scores/mine"
+peer_scores  = "/submissions/39dba4c4-ee64-5363-bdce-ea43f834ab53/scores"
+csv_export   = "/events/43c3b68e-0616-5f66-b998-56217b678279/judging/export.csv"
