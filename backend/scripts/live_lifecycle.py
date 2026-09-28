@@ -59,7 +59,8 @@ chk("create event participant", c.post("/events", json={"name": "x"}, headers=le
 r = chk("create event org", c.post("/events", json={"name": f"Deep {sfx}", "slug": f"deep-{sfx}"}, headers=org), 201)
 eid = r.json()["id"]
 chk("dup slug", c.post("/events", json={"name": "d", "slug": f"deep-{sfx}"}, headers=org), 400, 409)
-chk("get event", c.get(f"/events/{eid}"), 200)
+chk("get event anon (draft hidden)", c.get(f"/events/{eid}"), 404)
+chk("get event org (draft visible to organizer)", c.get(f"/events/{eid}", headers=org), 200)
 chk("list events", c.get("/events"), 200)
 chk("bad uuid", c.get("/events/not-a-uuid"), 422)
 chk("patch anon", c.patch(f"/events/{eid}", json={"tagline": "t"}), 401)

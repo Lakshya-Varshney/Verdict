@@ -64,7 +64,8 @@ try:
     # ---- window: before voting opens
     eid, subs = make_event("open")
     events.append(eid)
-    chk("event stores voting_mode", c.get(f"/events/{eid}").json()["voting_mode"] == "open")
+    # anon GET: new events are drafts, hidden from the public until the organizer opens them
+    chk("event stores voting_mode", c.get(f"/events/{eid}", headers=org).json()["voting_mode"] == "open")
     r = client().post(f"/submissions/{subs[0]}/vote")
     chk("vote before window -> 400", r.status_code == 400 and "not started" in r.text, r.text[:100])
     to_voting(eid)
