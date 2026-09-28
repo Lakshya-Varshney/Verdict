@@ -9,7 +9,7 @@
 base_url = "http://localhost:8000"
 
 [tiers]
-claimed = ["T1", "T2"]
+claimed = ["T1", "T2","T3"]
 pitch = "DOGFOOD: a FastAPI + Postgres hackathon platform with per-event role enforcement, weighted rubric scoring with per-judge z-score normalisation, and audit logging."
 
 [auth]
