@@ -58,7 +58,9 @@ def _n(eid):
     return d["total"] if c == 200 else -1
 
 
-E = max((e["id"] for e in api("GET", "/events")[1]), key=_n)  # the event with the most projects (the official fixture)
+_all_events = api("GET", "/events")[1]
+E = max((e["id"] for e in _all_events), key=_n)  # the event with the most projects (the official fixture)
+DEMO = next((e["id"] for e in _all_events if e.get("slug") == "dogfood-hackathon-2024"), None)  # seed.py's demo event: judge1/2/3 are its judges, unlike the fixture's own (passwordless) judges
 
 with sync_playwright() as p:
     browser = p.chromium.launch(channel="chrome", headless=True)
@@ -96,7 +98,8 @@ with sync_playwright() as p:
         pg.click("button.btn-primary:has-text('Create event')")
         pg.wait_for_url(re.compile(r"/events/[0-9a-f-]{36}/settings"), timeout=10000)
         eid = re.search(r"/events/([0-9a-f-]{36})/", pg.url).group(1)
-        code, ev = api("GET", f"/events/{eid}")
+        # a fresh event is a draft, hidden from anonymous GETs; read it back as its organizer
+        code, ev = api("GET", f"/events/{eid}", org_t)
         assert ev["name"] == name and ev["tagline"] == "Ship it fast", ev
         assert not pg.errs, pg.errs
         api("DELETE", f"/events/{eid}", org_t)
@@ -121,12 +124,22 @@ with sync_playwright() as p:
 
     @flow("judge: open assignment, click a score key, score persisted server-side")
     def _():
-        pg = newpage("judge1@dogfoodhack.com", "judge123")
+        # E's own judges are the fixture's imported (passwordless) accounts, so this flow uses
+        # the demo seed event instead, where judge1 is a real, loggable-in judge.
+        assert DEMO, "seed demo event (dogfood-hackathon-2024) not found"
         jt = tok("judge1@dogfoodhack.com", "judge123")
-        mine = api("GET", f"/events/{E}/judging/assignments/mine", jt)[1]
+        # unlock scoring; idempotent. seed.py sets judging_opens_at 3 days in the future, so status
+        # alone isn't enough - the scoring-window check 403s until it's patched open too.
+        api("PATCH", f"/events/{DEMO}", org_t, {
+            "status": "judging",
+            "judging_opens_at": "2020-01-01T00:00:00Z",
+            "judging_closes_at": "2099-01-01T00:00:00Z",
+        })
+        mine = api("GET", f"/events/{DEMO}/judging/assignments/mine", jt)[1]
         assert mine, "judge has no assignments"
         sid = mine[0]["submission_id"]
-        pg.goto(WEB + f"/events/{E}/judge/{sid}", wait_until="networkidle")
+        pg = newpage("judge1@dogfoodhack.com", "judge123")
+        pg.goto(WEB + f"/events/{DEMO}/judge/{sid}", wait_until="networkidle")
         keys = pg.locator("button.key:not([disabled])")
         if keys.count() == 0:
             return "scoring locked for this event status (UI shows read-only) - no keys to click"
