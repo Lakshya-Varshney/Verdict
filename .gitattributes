@@ -1,0 +1,18 @@
+# Normalize line endings so shell scripts committed with LF never get rewritten to CRLF on
+# checkout (e.g. Windows with the common `core.autocrlf=true` setting). A CRLF shebang line
+# breaks `exec` inside the Linux containers: "scripts/entrypoint.sh: no such file or directory".
+* text=auto eol=lf
+
+# Always LF, no matter what — these run inside Linux containers.
+*.sh text eol=lf
+backend/scripts/entrypoint.sh text eol=lf
+backend/scripts/test-pipeline.sh text eol=lf
+
+# Binary-ish / generated files: don't touch line endings, don't diff as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+package-lock.json -diff
