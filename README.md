@@ -228,7 +228,7 @@ docker compose --profile test run --rm pytest        # 262 tests on a throwaway 
 docker compose --profile test run --rm test          # CI-style pipeline: tests, migration check, seed, boot, smoke
 python run.py .dogfood.toml                          # the official checker
 python backend/scripts/check_openapi.py              # spec valid + complete + covers every frontend call
-python backend/scripts/live_lifecycle.py             # 112 checks: whole lifecycle + negative cases, live
+python backend/scripts/live_lifecycle.py             # 113 checks: whole lifecycle + negative cases, live
 python backend/scripts/live_t3.py                    # 37 checks: public voting through the real web proxy
 python backend/scripts/live_webhooks.py              # 21 checks: a real receiver, signatures, retries, SSRF
 python backend/scripts/probe_abuse.py                # 96 hostile-input probes + 16 authorization exploits: expects "clean"

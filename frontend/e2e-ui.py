@@ -32,13 +32,14 @@ E = max((e["id"] for e in jget("/events")), key=_n)  # the event with the most p
 S = jget(f"/events/{E}/submissions")[0]["id"]
 tracks = jget(f"/events/{E}/tracks")
 TEAM_ID = "00000000-0000-0000-0000-000000000000"
+BOGUS_CODE = "a" * 64  # well-formed sha256-shaped code, so /verify/{code} 404s cleanly instead of 422
 
 PAGES = ["/", "/login", "/signup", "/events", "/events/new", "/admin/audit", f"/embed/{E}", f"/join/{TEAM_ID}",
          f"/submissions/{S}", f"/events/{E}", f"/events/{E}/assign", f"/events/{E}/audit", f"/events/{E}/data",
          f"/events/{E}/gallery", f"/events/{E}/judge", f"/events/{E}/judge/duel", f"/events/{E}/judge/{S}",
          f"/events/{E}/progress", f"/events/{E}/results", f"/events/{E}/rubric", f"/events/{E}/settings",
          f"/events/{E}/submit", f"/events/{E}/team", f"/events/{E}/vote", f"/events/{E}/webhooks",
-         f"/events/{E}/certificate/{TEAM_ID}"]
+         f"/events/{E}/certificate/{TEAM_ID}", f"/verify/{BOGUS_CODE}"]
 
 ROLES = {
     "visitor": None,

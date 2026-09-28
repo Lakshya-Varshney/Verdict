@@ -17,14 +17,16 @@ Set `NEXT_PUBLIC_MOCK=false`. The browser calls `/api/*`; `next.config.mjs` prox
 Docker: `Dockerfile` builds a standalone image (rewrite target and `NEXT_PUBLIC_*` are baked in at build time — pass them as build args).
 See `docs/API-GAPS.md` for every place the UI assumes something about the backend.
 
-## Screens (26 routes)
-Public: `/` · `/events` · `/events/[id]` (+`/gallery`) · `/submissions/[sid]` · `/login` · `/signup` · `/embed/[id]`
+## Screens (27 routes)
+Public: `/` · `/events` · `/events/[id]` (+`/gallery`) · `/submissions/[sid]` · `/login` · `/signup` · `/embed/[id]` · `/verify/[code]`
 Participant: `/team` · `/submit` · `/join/[teamId]` · certificate · ballot (`/vote`)
-Judge: `/judge` (queue) · `/judge/[sid]` (scoring desk) · `/judge/duel` (pairwise)
+Judge: `/judge` (queue) · `/judge/[sid]` (scoring desk) · `/judge/duel` (pairwise, not built: `501`)
 Organiser/admin: `/rubric` · `/assign` · `/progress` · `/results` (raw vs normalised proof) · `/audit` · `/settings` · `/data` · `/webhooks` · `/events/new` · `/admin/audit`
 
 ## Status — what was and wasn't verified
-- ✅ `next build` and `tsc` pass. ~30 views screenshotted in headless Chromium across all five roles (desktop, 390px mobile, both themes); no console errors in those runs.
-- ✅ Exercised in mock mode: sign-in, scoring key presses, normalisation, quadratic ballot, role-denial screens.
-- ⚠️ Not tested: against the real FastAPI backend, the Docker build, other browsers, accessibility audit. No automated tests yet.
-- ⚠️ The mock's normalisation (per-judge z-score, tanh soft-limit) is a UI stand-in; the real maths lives in the backend.
+This file predates the backend integration; that work is done and is documented at the repo root, not here. Current status:
+- ✅ `next build` and `tsc` pass; the Docker image builds and boots against the real FastAPI backend (`docker compose up -d --build`).
+- ✅ Automated tests exist and pass against the real backend: `frontend/e2e-ui.py` (27 pages × 5 roles, real browser), `frontend/e2e-ui-flows.py` (13 interactive flows), `frontend/e2e-embed.py` (cross-origin embed). See root `README.md` → Testing and verification.
+- ✅ Exercised in mock mode too: sign-in, scoring key presses, normalisation, quadratic ballot, role-denial screens.
+- ⚠️ Not tested: other browsers besides Chromium, a formal accessibility audit.
+- ⚠️ The mock's normalisation (per-judge z-score, tanh soft-limit) is a UI stand-in; the real maths lives in the backend (see `JUDGING.md`).
