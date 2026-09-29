@@ -11,10 +11,47 @@ signatory, which is the honest thing for a document a server issues, not a perso
 import html
 import io
 import json
+import os
 
 from app.config import settings
 
 TITLES = {"participant": "Certificate of Participation", "judge": "Judge Participation Record", "winner": "Certificate of Achievement"}
+
+_FONT_DIR = os.path.join(os.path.dirname(__file__), "..", "static", "fonts")
+_UNICODE_FONT_REGISTERED = False
+
+
+def _register_unicode_fonts() -> bool:
+    """Register the vendored Noto Sans (Regular/Bold) once, for the recipient name and event
+    name only - the two fields most likely to hold a script outside Latin-1. Covers Latin
+    Extended, Cyrillic, Greek and Vietnamese; CJK is not included (that needs a much larger,
+    script-specific font) and still falls back to `_latin1()`'s '?' degradation. Every other
+    string on the page (detail line, footer, verification code/URL) stays on the built-in
+    Latin-1 fonts on purpose: those are checked byte-for-byte by tests and by anyone diffing
+    the PDF, and a TrueType font embeds glyphs by id, not by character code."""
+    global _UNICODE_FONT_REGISTERED
+    if _UNICODE_FONT_REGISTERED:
+        return True
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+
+        pdfmetrics.registerFont(TTFont("NotoSans", os.path.join(_FONT_DIR, "NotoSans-Regular.ttf")))
+        pdfmetrics.registerFont(TTFont("NotoSans-Bold", os.path.join(_FONT_DIR, "NotoSans-Bold.ttf")))
+        _UNICODE_FONT_REGISTERED = True
+    except Exception:
+        _UNICODE_FONT_REGISTERED = False
+    return _UNICODE_FONT_REGISTERED
+
+
+def _has_glyphs(text: str, font: str) -> bool:
+    """True if every character in `text` (ignoring spaces) has a glyph in `font` - so a name
+    with characters the vendored font can't draw (CJK, Arabic, ...) falls back cleanly instead
+    of rendering as tofu boxes."""
+    from reportlab.pdfbase.pdfmetrics import getFont
+
+    cmap = getFont(font).face.charWidths  # any dict keyed by codepoint works as a coverage check
+    return all(ord(c) in cmap for c in text if c != " ")
 
 # The big on-page headline word for each kind - separate from TITLES (which stays put; it only
 # feeds document metadata and the verify page's own heading).
@@ -64,6 +101,16 @@ def _fit(text: str, font: str, size: float, max_width: float, min_size: float = 
     return size
 
 
+def _best_font(text: str, unicode_font: str, latin1_font: str) -> tuple[str, str]:
+    """(text_to_draw, font_name): the raw text on the vendored Unicode font if every character
+    in it has a glyph there, else the Latin-1-straightened text on the built-in font (the
+    original behaviour). Only for display fields - never for text a test or verifier matches
+    byte-for-byte (see `_register_unicode_fonts`)."""
+    if _register_unicode_fonts() and _has_glyphs(text, unicode_font):
+        return text, unicode_font
+    return _latin1(text), latin1_font
+
+
 def render_pdf(payload: dict, signature: str, code: str, key_id: str) -> bytes:
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.utils import simpleSplit
@@ -95,9 +142,9 @@ def render_pdf(payload: dict, signature: str, code: str, key_id: str) -> bytes:
     c.setFillColorRGB(*_INK3)
     c.drawCentredString(w / 2, top, _track("VERDICT"))
 
-    event_line = _latin1(payload["event"]["name"]).upper()
-    size = _fit(event_line, "Helvetica-Bold", 22, w - 160, 6)
-    c.setFont("Helvetica-Bold", size)
+    event_line, event_font = _best_font(payload["event"]["name"].upper(), "NotoSans-Bold", "Helvetica-Bold")
+    size = _fit(event_line, event_font, 22, w - 160, 6)
+    c.setFont(event_font, size)
     c.setFillColorRGB(*_AMBER)
     c.drawCentredString(w / 2, top - 27, event_line)
 
@@ -137,9 +184,9 @@ def render_pdf(payload: dict, signature: str, code: str, key_id: str) -> bytes:
     c.setFillColorRGB(*_INK3)
     c.drawCentredString(w / 2, y - 34, "- awarded to -")
 
-    name = _latin1(payload["recipient"]["name"])
-    size = _fit(name, "Helvetica-Bold", 42, w - 140)
-    c.setFont("Helvetica-Bold", size)
+    name, name_font = _best_font(payload["recipient"]["name"], "NotoSans-Bold", "Helvetica-Bold")
+    size = _fit(name, name_font, 42, w - 140)
+    c.setFont(name_font, size)
     c.setFillColorRGB(*_INK)
     c.drawCentredString(w / 2, y - 74, name)
 
