@@ -870,10 +870,34 @@ async def export_results_csv(
 async def get_judging_results(
     event_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role(["organizer", "admin"])),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
-    """Get final judging results (organizer/admin only) as UI Results shape."""
-    return await _compute_results(db, event_id)
+    """Final judging results. Public - including to signed-out visitors - once the organiser
+    publishes (the results page itself carries no role gate); before that, only the event's
+    organizers/admins may preview the board, so nobody can lobby a leaderboard still in progress."""
+    results = await _compute_results(db, event_id)
+    if results["published"]:
+        return results
+
+    is_staff = False
+    if current_user is not None:
+        admin_check = await db.execute(
+            select(EventRole).where(EventRole.user_id == current_user.id, EventRole.role == EventRoleType.ADMIN)
+        )
+        if admin_check.first():
+            is_staff = True
+        else:
+            staff_check = await db.execute(
+                select(EventRole).where(
+                    EventRole.user_id == current_user.id,
+                    EventRole.event_id == str(event_id),
+                    EventRole.role == EventRoleType.ORGANIZER,
+                )
+            )
+            is_staff = staff_check.first() is not None
+    if not is_staff:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Results have not been published yet")
+    return results
 
 
 @router.get("/events/{event_id}/judging/attestation", response_model=AttestationOut)
