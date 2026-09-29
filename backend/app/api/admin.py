@@ -9,8 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.api.deps import is_global_admin, require_role, require_role_global
-from app.services.audit_service import get_audit_logs
+from app.services.audit_service import get_audit_logs, verify_chain
 from app.schemas.voting import AuditLogResponse
+from app.schemas.api import AuditChainStatus
 from app.models.user import User
 
 router = APIRouter(tags=["admin"])
@@ -90,3 +91,18 @@ async def list_audit_logs(
         header = f"# audit log, page {page}, {len(items)} of {total} entries (newest first)"
         return PlainTextResponse(NL.join([header, *lines]) + NL)
     return {"items": items, "total": total, "page": page, "limit": limit}
+
+
+@router.get("/admin/audit/verify", response_model=AuditChainStatus)
+async def verify_audit_chain(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role_global(["organizer", "admin"])),
+):
+    """Recompute the whole audit log's hash chain and report whether it is intact.
+
+    Any organizer or admin can call this (not just admins): a hash chain's integrity is a
+    property of the *whole* sequence, so verifying it neither requires nor exposes any other
+    event's audit content - on failure the response names only the first broken row's `seq`
+    and `id`, never its action, actor or target.
+    """
+    return await verify_chain(db)

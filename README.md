@@ -26,7 +26,7 @@ live API docs at `/docs`.
 | **T2 Judging** | Balanced assignment (never your own team), weighted rubric, role isolation (judges see only their own scores), progress view, **per-judge z-score normalization** (zero-variance / single-review fallbacks), CSV export | official checker + `test_normalization.py`, `test_real_fixtures.py` (recomputed independently on the 40-project data) |
 | **T3 Public** | Voting: open / email / signed-in / **quadratic**, one vote per person per event by default; comments; results hidden while voting (server-side); **randomized ballot order** per voter; rate limiting, duplicate detection, human-readable **audit log** (`/admin/audit`) | `test_voting_abuse.py`, `live_t3.py`, UI flows |
 | **T4 Stretch** | Complete OpenAPI + self-hosted `/docs`; **signed webhooks** (outbox, retries, SSRF guard); **certificates + Ed25519-signed judge records** (PDF/HTML, public verification, offline verifier); **embeddable gallery** (script tag / iframe / CORS JSON); **JSON export/import** of a whole event | `test_openapi.py`, `test_webhooks.py`, `test_certificates.py`, `test_embed.py`, `test_dump.py`, `live_webhooks.py`, `e2e-embed.py` |
-| Bonus | Normalization proof on real data (JUDGING.md), threat model (THREAT-MODEL.md), API-first (OpenAPI enforced by tests) | those documents + `probe_abuse.py` |
+| Bonus | Normalization proof on real data (JUDGING.md), threat model (THREAT-MODEL.md), API-first (OpenAPI enforced by tests), **hash-chained audit log** (not just append-only by convention: `GET /admin/audit/verify` and the offline `verify_audit_chain.py` both detect a database operator editing history) | those documents + `probe_abuse.py`, `test_audit_chain.py` |
 
 Not built: pairwise / Bradley-Terry judging (the UI's "duel" page degrades to a `501` message).
 
@@ -96,7 +96,7 @@ so it prints `note: claimed but not verified: T3 T4` by design; T3 and T4 are co
 
 ## API
 
-The API is the product: the web UI is a client of it. **58 operations**, all documented with a summary, auth level, typed response, error statuses
+The API is the product: the web UI is a client of it. **59 operations**, all documented with a summary, auth level, typed response, error statuses
 (`{"detail": …}`) and described parameters; request bodies carry examples; `operationId`s are the handler names (client-generator friendly).
 
 | Area | Endpoints (see `/docs` for all, with schemas) |
@@ -107,7 +107,7 @@ The API is the product: the web UI is a client of it. **58 operations**, all doc
 | submissions | create / update / submit (deadline `403`), detail, public gallery |
 | judging | rubric, assign, my/all assignments, progress, scores (`/mine` vs organizer-only all), normalize, results, `export.csv` |
 | voting | `POST /submissions/{id}/vote`, `/votes/count`, `GET /events/{id}/ballot`, comments |
-| admin | `GET /admin/audit` (`?format=text`; organizers see their own events only) |
+| admin | `GET /admin/audit` (`?format=text`; organizers see their own events only), `GET /admin/audit/verify` (hash-chain integrity check, any organizer) |
 | data | `POST /events/{id}/export`, `POST /events/{id}/import[?dry_run=true]` |
 | certificates | `GET /events/{id}/certificates/{user}[?format=pdf\|html]`, `GET /verify/{code}`, `POST /verify`, `GET /.well-known/dogfood-signing-key` |
 | webhooks | `POST /webhooks/subscribe`, `GET /webhooks`, `DELETE /webhooks/{id}`, `/webhooks/{id}/deliveries`, `/webhooks/{id}/ping`, `GET /webhooks/event-types` |
@@ -214,7 +214,7 @@ dogfood/
 │   │   ├── utils/      # security (JWT, bcrypt), rate limiting, fingerprints
 │   │   └── static/     # vendored Swagger UI (offline /docs)
 │   ├── alembic/versions/                                # migrations (checked against the models)
-│   ├── scripts/        # entrypoint, seed, test-pipeline, live_*.py, probe_abuse.py, check_openapi.py, verify_certificate.py
+│   ├── scripts/        # entrypoint, seed, test-pipeline, live_*.py, probe_abuse.py, check_openapi.py, verify_certificate.py, verify_audit_chain.py
 │   └── tests/          # pytest (real Postgres via the test profile)
 └── frontend/           # Next.js app, e2e-ui.py / e2e-ui-flows.py / e2e-embed.py (Playwright), docs/API-GAPS.md
 ```
@@ -231,6 +231,7 @@ python backend/scripts/check_openapi.py              # spec valid + complete + c
 python backend/scripts/live_lifecycle.py             # 113 checks: whole lifecycle + negative cases, live
 python backend/scripts/live_t3.py                    # 37 checks: public voting through the real web proxy
 python backend/scripts/live_webhooks.py              # 21 checks: a real receiver, signatures, retries, SSRF
+python backend/scripts/verify_audit_chain.py         # recomputes the audit log's hash chain independently: expects "OK"
 python backend/scripts/probe_abuse.py                # 96 hostile-input probes + 16 authorization exploits: expects "clean"
 python frontend/e2e-ui.py                            # every page × 5 roles in a real browser
 python frontend/e2e-ui-flows.py                      # 13 interactive flows (vote, score, export/import, certificates, webhooks, ...)

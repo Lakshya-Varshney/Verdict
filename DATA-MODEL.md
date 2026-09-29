@@ -174,9 +174,17 @@ AuditLog (event_id, actor_id: soft references, so history outlives what it descr
 | created_at | TIMESTAMPTZ | DEFAULT NOW() |
 
 ### AuditLogs
+Hash-chained, not just append-only by convention: `seq` gives a strict, DB-assigned insertion
+order (independent of wall-clock time, which can collide under load), and each row's `hash`
+covers its own fields plus the previous row's `hash` (`prev_hash`). Editing, reordering or
+deleting any past row breaks every hash after it - detectable via `GET /admin/audit/verify` or
+`backend/scripts/verify_audit_chain.py`, both of which recompute the whole chain independently
+rather than trusting a stored flag. See `THREAT-MODEL.md` R4 / J7.
+
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PK |
+| seq | BIGINT | Identity (DB-assigned), UNIQUE, INDEX: strict insertion order |
 | actor_id | UUID | FK → users.id (nullable = system / anonymous) |
 | event_id | UUID | INDEX, nullable; the event the action belongs to (powers `/admin/audit?event_id=`) |
 | action | VARCHAR(100) | NOT NULL, INDEX, e.g. `vote.cast`, `score.update`, `role.grant`, `event.status_change` |
@@ -184,6 +192,8 @@ AuditLog (event_id, actor_id: soft references, so history outlives what it descr
 | target_id | VARCHAR(36) | NOT NULL |
 | extra_data | JSON | DEFAULT {}: `role`, `ip`, `outcome` (ok/denied), `detail`, action-specific fields |
 | created_at | TIMESTAMPTZ | DEFAULT NOW(), INDEX |
+| prev_hash | VARCHAR(64) | NOT NULL: the previous row's `hash`, or 64 zeros for the first row ever |
+| hash | VARCHAR(64) | NOT NULL: sha256 of this row's own fields (incl. `seq`, `prev_hash`), canonical JSON |
 
 ### Certificates
 | Column | Type | Constraints |

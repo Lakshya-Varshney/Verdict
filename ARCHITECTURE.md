@@ -200,12 +200,15 @@ read endpoint answers in under 100 ms (worst: `POST /judging/normalize`, ~90 ms;
 | **Server-issued signed cookie for `open` voting** | No login needed, tamper-evident | cookie clearing is bounded only by per-IP caps (see threat model R1) |
 | **Public gallery shows `custom_answers`** | The UI presents them as part of the project | organizers must not ask for private data |
 | **Vendored Swagger UI, `/redoc` removed** | Docs must work with the network off | one static bundle in the repo (Apache-2.0, license included) |
+| **Hash-chained audit log, one global advisory lock per write** | A linear, independently-verifiable chain needs writes serialized (else two concurrent transactions could read the same tip hash and fork it) | every action that logs anything takes one Postgres advisory lock; a real cost under heavy concurrent write load, accepted for a verifiable history instead of a merely conventional one |
 
 ## 11. Limitations (honest list)
 
 Pairwise/Bradley-Terry judging is not built (the UI's "duel" page returns `501`); email voting is not verified; rate limiting is per IP and identity, not a
-global WAF; certificates use Latin-1 fonts in PDF and have no revocation; the audit log is append-only by convention, not hash-chained; the app has no CSP
-of its own. The security-relevant ones are analysed in `THREAT-MODEL.md` §6 with mitigations.
+global WAF; certificate PDFs fall back to `?` for scripts the vendored Unicode font doesn't cover (CJK; Latin/Cyrillic/Greek/Vietnamese render correctly) and
+have no revocation; the audit log's own integrity is hash-chained and independently verifiable (`GET /admin/audit/verify`, `verify_audit_chain.py`), but that
+does not extend to data an operator edits directly without going through the application; the app has no CSP of its own. The security-relevant ones are
+analysed in `THREAT-MODEL.md` §6 with mitigations.
 
 ## 12. Frontend
 

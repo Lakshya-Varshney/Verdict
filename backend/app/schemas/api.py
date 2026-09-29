@@ -431,6 +431,20 @@ class MessageOut(_Out):
     message: str
 
 
+class AuditChainBreak(_Out):
+    seq: int = Field(description="Insertion-order sequence number of the first row that doesn't verify")
+    id: Id
+    reason: str
+
+
+class AuditChainStatus(_Out):
+    valid: bool
+    checked: int = Field(description="Rows examined before the chain confirmed valid, or before it broke")
+    head_seq: Optional[int] = Field(None, description="Sequence number of the last row (only when valid and non-empty)")
+    head_hash: Optional[str] = Field(None, description="Hash of the last row (only when valid)")
+    broken: Optional[AuditChainBreak] = Field(None, description="The first row that failed to verify (only when invalid); never the row's own content")
+
+
 class ErrorOut(BaseModel):
     """Every non-2xx response from the API has this body."""
     detail: Any = Field(description="Human-readable message (string), or a list of validation errors for 422")

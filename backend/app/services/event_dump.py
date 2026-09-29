@@ -29,7 +29,7 @@ from app.models.team import Team, TeamMembership, TeamRoleType
 from app.models.user import User
 from app.models.voting import Comment, Vote
 from app.schemas.dump import DUMP_FORMAT, DUMP_VERSION, EventDump
-from app.services.audit_service import create_audit_log
+from app.services.audit_service import append_to_chain, create_audit_log
 from app.utils.security import get_password_hash
 
 MAX_ROWS = 200_000
@@ -472,7 +472,7 @@ async def import_dump(
             if a.id in have_au:
                 tally.updated["audit"] += 1
                 continue
-            db.add(AuditLog(id=a.id, actor_id=uid.get(a.actor_id) if a.actor_id else None, event_id=eid, action=a.action,
+            await append_to_chain(db, AuditLog(id=a.id, actor_id=uid.get(a.actor_id) if a.actor_id else None, event_id=eid, action=a.action,
                             target_type=a.target_type, target_id=a.target_id,
                             extra_data={**a.extra_data, "imported": True, "imported_by": str(actor_id)},
                             created_at=_dt(a.created_at) or datetime.now(timezone.utc)))

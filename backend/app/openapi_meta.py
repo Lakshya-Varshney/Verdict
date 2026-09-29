@@ -147,6 +147,8 @@ OPS: dict[tuple[str, str], dict[str, Any]] = {
                                note='Usage: `<script src="http://localhost:8000/embed.js" data-event="EVENT_ID" data-limit="12" data-theme="dark"></script>`. Inserts an auto-resizing iframe.'),
     ("GET", "/admin/audit"): dict(summary="Audit log", auth="role", errors=[401, 403],
                                   note="Organizer/admin. Append-only. Filter by `event_id`, `actor_id`, `action`; `format=text` returns one readable line per entry.", text=True),
+    ("GET", "/admin/audit/verify"): dict(summary="Verify the audit log's hash chain", auth="role", errors=[401, 403],
+                                  note="Organizer/admin (any organizer, not just admins: verifying doesn't expose another event's content). Recomputes every row's hash from its own stored fields; `{valid, checked, head_seq, head_hash}` or, on tampering, `{valid: false, broken: {seq, id, reason}}` naming only the first bad row, never its content."),
 }
 
 ERROR_TEXT = {
