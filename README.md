@@ -105,7 +105,7 @@ The API is the product: the web UI is a client of it. **59 operations**, all doc
 | events | CRUD `/events`, tracks, roles (`admin` can only be granted by an admin) |
 | teams | create / join / get / `mine` / remove member |
 | submissions | create / update / submit (deadline `403`), detail, public gallery |
-| judging | rubric, assign, my/all assignments, progress, scores (`/mine` vs organizer-only all), normalize, results, `export.csv` |
+| judging | rubric, assign, my/all assignments, progress, scores (`/mine` vs organizer-only all), normalize, results, `export.csv`, `attestation` (a judge's own signed proof of their scores, any time) |
 | voting | `POST /submissions/{id}/vote`, `/votes/count`, `GET /events/{id}/ballot`, comments |
 | admin | `GET /admin/audit` (`?format=text`; organizers see their own events only), `GET /admin/audit/verify` (hash-chain integrity check, any organizer) |
 | data | `POST /events/{id}/export`, `POST /events/{id}/import[?dry_run=true]` |
@@ -176,8 +176,14 @@ standard library:
 python backend/scripts/verify_certificate.py --server http://localhost:8000 certificate.json     # or certificate.html, or --key <public key>
 ```
 
-Limits: PDFs use Latin-1 fonts (other scripts print as `?`; JSON/HTML keep the exact name); no revocation list. The signing key derives from `CERT_SIGNING_KEY`
-(falls back to `JWT_SECRET_KEY`).
+Limits: PDFs render names in a vendored Unicode font (Latin Extended, Cyrillic, Greek, Vietnamese; CJK still prints as `?` - JSON/HTML always keep the exact
+name); no revocation list. The signing key derives from `CERT_SIGNING_KEY` (falls back to `JWT_SECRET_KEY`).
+
+**A judge's own score attestation** is a related but separate document: `GET /events/{id}/judging/attestation` signs the judge's **actual current scores**
+(not just counts) with the same Ed25519 key, available any time - not gated on the event closing, and not stored, so re-requesting it after changing a score
+signs a fresh snapshot rather than returning a stale one. Because it carries real score values, it is deliberately **not** reachable via the public
+`GET /verify/{code}` lookup the way a certificate is; only someone holding the document (the judge, or an organizer they showed it to) can check it with
+`POST /verify` or the same offline `verify_certificate.py`.
 
 ---
 

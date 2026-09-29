@@ -362,3 +362,12 @@ that is sent and signed, `status` is `pending → sending → success | retry �
 Entitlement is computed from live data at issuance (team membership + submitted project; judge role + at least one score; top-3 normalized
 rank once published) and the result is frozen in the row. `check_record()` recomputes hash and signature, so a database edit is detected
 by `GET /verify/{code}`. Certificates are not part of event dumps: they are re-issued from the restored data.
+
+### Score attestations (not a table)
+
+`GET /events/{id}/judging/attestation` (`certificate_service.build_score_attestation`) signs the same shape (`kind:
+"judge_score_attestation"`) with `record: {scores: [{submission_id, submission_name, criterion_id, criterion_name, value, comment,
+updated_at}, ...]}` - the judge's actual per-criterion values, which a `judge` certificate deliberately never includes. It is **not persisted**:
+computed and signed fresh on every request, so it can never present a stale snapshot as current, and it has no `verification_hash` row for
+`GET /verify/{code}` to find - only `POST /verify` (payload + signature in hand) or the offline verifier can check one. Available any time a
+judge has scored something, not gated on the event closing.

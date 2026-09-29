@@ -10,6 +10,9 @@ Rules
   * issued lazily and once: the stored, signed document is returned on every later request (stable `issued_at`,
     stable verification code), so a certificate can never silently change;
   * the signed payload holds ids, names, the detail line and counts: no emails, no scores.
+
+`build_score_attestation` (below) is a related but separate, unstored document: a judge's signed
+proof of their *actual scores*, available any time (not gated on the event closing).
 """
 
 from datetime import datetime, timezone
@@ -20,7 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.certificate import Certificate
 from app.models.event import Event, EventRole, EventRoleType, EventStatus
-from app.models.judging import Score
+from app.models.judging import RubricCriterion, Score
 from app.models.submission import Submission, SubmissionStatus
 from app.models.team import Team, TeamMembership
 from app.models.user import User
@@ -143,3 +146,61 @@ def check_record(cert: Certificate) -> bool:
         and signing.payload_hash(cert.payload) == cert.verification_hash
         and signing.verify(cert.payload, cert.signature)
     )
+
+
+async def build_score_attestation(db: AsyncSession, event: Event, judge: User) -> dict:
+    """A judge's own signed proof of exactly what they scored, right now.
+
+    Deliberately different from the `judge` certificate above, which never includes the scores
+    themselves and is only issued once the event closes: this is available the moment a judge has
+    submitted anything, so they can attest "this is what I scored" *before* the window closes -
+    the certificate proves participation after the fact, this proves content as of a moment in
+    time. It is not stored (a judge may score again before the window closes, and a stale stored
+    copy would misrepresent itself as current), so it has no short lookup code and is never
+    reachable via the public `GET /verify/{code}` - only someone holding the document itself can
+    verify it (`POST /verify`, `backend/scripts/verify_certificate.py`), which matters because,
+    unlike a certificate, this payload carries the judge's actual per-criterion values.
+    """
+    rows = (
+        await db.execute(
+            select(Score, RubricCriterion.name, Submission.id, Submission.name)
+            .join(RubricCriterion, RubricCriterion.id == Score.criterion_id)
+            .join(Submission, Submission.id == Score.submission_id)
+            .where(Submission.event_id == str(event.id), Score.judge_id == str(judge.id))
+            .order_by(Submission.name, RubricCriterion.name)
+        )
+    ).all()
+    if not rows:
+        raise CertError(404, "You have not scored any submissions in this event yet")
+
+    scores = [
+        {
+            "submission_id": sub_id,
+            "submission_name": sub_name,
+            "criterion_id": score.criterion_id,
+            "criterion_name": crit_name,
+            "value": score.raw_value,
+            "comment": score.comment or "",
+            "updated_at": _iso(score.updated_at),
+        }
+        for score, crit_name, sub_id, sub_name in rows
+    ]
+    now = datetime.now(timezone.utc)
+    payload = {
+        "v": PAYLOAD_VERSION,
+        "issuer": "DOGFOOD",
+        "kind": "judge_score_attestation",
+        "event": {"id": str(event.id), "name": event.name},
+        "recipient": {"id": str(judge.id), "name": judge.name},
+        "detail": f"Signed record of {len(scores)} score{'s' if len(scores) != 1 else ''} submitted for {event.name}, as of this moment",
+        "issued_at": _iso(now),
+        "record": {"scores": scores},
+    }
+    signature = signing.sign(payload)
+    return {
+        "payload": payload,
+        "signature": signature,
+        "key_id": signing.key_id(),
+        "algorithm": signing.ALGORITHM,
+        "verify_hash": signing.payload_hash(payload),
+    }

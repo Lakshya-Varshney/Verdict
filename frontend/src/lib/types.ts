@@ -82,6 +82,12 @@ export interface Page<T> { items: T[]; total: number; page: number; limit: numbe
 export interface Webhook { id: string; url: string; event_types: string[]; active: boolean; created_at: string; event_id?: string | null; secret?: string; disabled_reason?: string | null; last_status?: string | null; consecutive_failures?: number; }
 export interface WebhookDelivery { id: string; event_type: string; status: string; attempts: number; response_status: number | null; last_error: string | null; created_at: string | null; delivered_at: string | null; }
 export interface Certificate { event_id: string; event_name: string; user_id: string; user_name: string; kind: "participant" | "judge" | "winner"; detail: string; issued_at: string; verify_hash: string; signature?: string; key_id?: string; algorithm?: string; verify_url?: string; }
+
+export interface AttestationScore { submission_id: string; submission_name: string; criterion_id: string; criterion_name: string; value: number; comment: string; updated_at: string; }
+export interface Attestation {
+  payload: { v: number; issuer: string; kind: "judge_score_attestation"; event: { id: string; name: string }; recipient: { id: string; name: string }; detail: string; issued_at: string; record: { scores: AttestationScore[] } };
+  signature: string; key_id: string; algorithm: string; verify_hash: string;
+}
 export interface VerifyResult { valid: boolean; issued_by_this_server?: boolean | null; verify_hash: string | null; key_id: string; algorithm: string;
   certificate: { kind: string; detail: string; issued_at: string; event: { id: string; name: string }; recipient: { id: string; name: string } } | null; }
 export interface ImportResult { imported: Record<string, number>; created?: Record<string, number>; updated?: Record<string, number>; warnings?: string[]; dry_run?: boolean; checksum_verified?: boolean; }

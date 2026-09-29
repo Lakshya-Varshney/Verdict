@@ -347,6 +347,14 @@ class EmbedGalleryOut(_Out):
 
 # ------------------------------------------------------------------ certificates
 
+class AttestationOut(_Out):
+    payload: dict[str, Any] = Field(description="The exact signed document (kind: judge_score_attestation); includes the judge's own per-criterion values")
+    signature: str = Field(description="Ed25519 signature over the canonical payload, base64url")
+    key_id: str
+    algorithm: str = "Ed25519"
+    verify_hash: str = Field(description="sha256 of the canonical payload; not a lookup code (this document is not stored, so `GET /verify/{code}` will not find it - verify it with `POST /verify` or the offline script instead)")
+
+
 class CertificateOut(_Out):
     event_id: Id
     event_name: str

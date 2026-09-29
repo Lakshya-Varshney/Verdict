@@ -25,6 +25,7 @@ from app.models.judging import (
 from app.models.event import EventRole, EventRoleType
 from app.models.submission import Submission
 from app.services.audit_service import create_audit_log
+from app.services.certificate_service import CertError, build_score_attestation
 from app.services.webhook_service import emit as emit_webhook
 from app.utils.fingerprint import client_ip
 from app.models.user import User
@@ -40,7 +41,7 @@ from app.schemas.judging import (
     JudgingProgress,
     JudgingResult,
 )
-from app.schemas.api import NormalizeOut, AssignResult, AssignmentRow, AssignmentSetOut, CriterionOut, JudgeScoresOut, OkOut, ProgressOut, ResultsOut
+from app.schemas.api import AttestationOut, NormalizeOut, AssignResult, AssignmentRow, AssignmentSetOut, CriterionOut, JudgeScoresOut, OkOut, ProgressOut, ResultsOut
 
 router = APIRouter(tags=["judging"])
 
@@ -873,3 +874,48 @@ async def get_judging_results(
 ):
     """Get final judging results (organizer/admin only) as UI Results shape."""
     return await _compute_results(db, event_id)
+
+
+@router.get("/events/{event_id}/judging/attestation", response_model=AttestationOut)
+async def get_score_attestation(
+    event_id: UUID,
+    judge_id: Optional[UUID] = Query(None, description="An organizer/admin may request another judge's attestation; defaults to yourself"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_role(["judge", "organizer", "admin"])),
+):
+    """A judge's own signed proof of exactly what they scored, as of right now.
+
+    Unlike a `judge` certificate (participation counts only, issued once the event closes), this
+    carries the actual per-criterion values and is available any time a judge has scored
+    something - so a judge can attest "this is what I scored" before the window even closes. Not
+    stored: re-request it and you get a fresh signature over your current scores.
+    """
+    from app.models.event import Event
+
+    event = (await db.execute(select(Event).where(Event.id == str(event_id)))).scalar_one_or_none()
+    if event is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Event not found")
+
+    target_id = str(judge_id) if judge_id else current_user.id
+    if str(target_id) != str(current_user.id):
+        staff = await db.execute(select(EventRole.id).where(
+            EventRole.event_id == str(event_id), EventRole.user_id == str(current_user.id),
+            EventRole.role.in_([EventRoleType.ORGANIZER, EventRoleType.ADMIN])))
+        if staff.first() is None:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only attest your own scores")
+    judge = (await db.execute(select(User).where(User.id == str(target_id)))).scalar_one_or_none()
+    if judge is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    try:
+        doc = await build_score_attestation(db, event, judge)
+    except CertError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.detail)
+
+    await create_audit_log(
+        db, "judging.attestation_issued", "attestation", judge.id, actor_id=current_user.id, event_id=event.id,
+        extra_data={"role": "self" if str(target_id) == str(current_user.id) else "organizer",
+                    "judge_id": str(target_id), "verify_hash": doc["verify_hash"],
+                    "detail": f"issued a score attestation ({len(doc['payload']['record']['scores'])} scores)"},
+    )
+    return doc

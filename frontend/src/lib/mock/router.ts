@@ -364,6 +364,27 @@ route("GET", "/submissions/{submission_id}/scores", (c) => {
   const ids = [...new Set(c.db.scores.filter((x) => x.submission_id === s.id).map((x) => x.judge_id))];
   return ids.map((j) => ({ judge_id: j, judge_name: userName(c.db, j), scores: c.db.scores.filter((x) => x.submission_id === s.id && x.judge_id === j).map((x) => ({ criterion_id: x.criterion_id, value: x.value, comment: x.comment })) }));
 });
+route("GET", "/events/{event_id}/judging/attestation", (c) => {
+  // Mock stand-in only: a fake signature, not real Ed25519 (the real maths lives in the backend -
+  // see frontend/README.md). Good enough to demo the UI with no backend.
+  const eid = c.params.event_id; const u = needUser(c); const e = getEvent(c, eid);
+  const targetId = c.query.get("judge_id") || u.id;
+  if (targetId !== u.id) require_role(c, eid, ["organizer", "admin"], "attestation.read");
+  const target = c.db.users.find((x) => x.id === targetId); if (!target) throw new HttpError(404, "User not found");
+  const subs = c.db.subs.filter((s) => s.event_id === eid);
+  const mine = c.db.scores.filter((x) => x.judge_id === targetId && subs.some((s) => s.id === x.submission_id));
+  if (!mine.length) throw new HttpError(404, "You have not scored any submissions in this event yet");
+  const scores = mine.map((x) => {
+    const sub = subs.find((s) => s.id === x.submission_id)!;
+    const crit = c.db.criteria.find((cr) => cr.id === x.criterion_id);
+    return { submission_id: sub.id, submission_name: sub.name, criterion_id: x.criterion_id, criterion_name: crit?.name ?? x.criterion_id, value: x.value, comment: x.comment ?? "", updated_at: nowIso() };
+  });
+  const payload = { v: 1, issuer: "DOGFOOD", kind: "judge_score_attestation", event: { id: eid, name: e.name }, recipient: { id: target.id, name: target.name },
+    detail: `Signed record of ${scores.length} score${scores.length !== 1 ? "s" : ""} submitted for ${e.name}, as of this moment`,
+    issued_at: nowIso(), record: { scores } };
+  log(c, "judging.attestation_issued", target.name, "ok", `${scores.length} scores`, eid);
+  return { payload, signature: "mock-signature-not-cryptographically-real", key_id: "mock0000", algorithm: "Ed25519", verify_hash: hashStr(JSON.stringify(payload)).toString(16).padStart(16, "0") };
+});
 route("POST", "/events/{event_id}/judging/normalize", (c) => {
   const eid = c.params.event_id; require_role(c, eid, ["organizer"], "judging.normalize");
   const r0 = computeResults(c.db, eid, true); if (!r0.rows.length) throw bad("No fully-scored reviews to normalise yet");

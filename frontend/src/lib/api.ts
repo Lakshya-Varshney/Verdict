@@ -438,6 +438,8 @@ export const api = {
       return { comparisons: 0, judges: 0, rows: [] };
     },
     exportCsv: (eventId: string) => request<Blob>("GET", `/events/${eventId}/judging/export.csv`, { raw: true }),
+    attestation: (eventId: string, judgeId?: string): Promise<T.Attestation> =>
+      g<T.Attestation>(`/events/${eventId}/judging/attestation`, judgeId ? { judge_id: judgeId } : undefined),
   },
   vote: {
     cast: async (sid: string, b: { fingerprint: string; email?: string; votes?: number }): Promise<{ ok: boolean; votes?: number; votes_left?: number; credits_left?: number }> => {
