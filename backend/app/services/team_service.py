@@ -8,7 +8,26 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.team import Team, TeamMembership, TeamRoleType
-from app.models.event import Event
+from app.models.event import Event, EventRole, EventRoleType
+
+
+async def _grant_participant_role(db: AsyncSession, event_id: UUID, user_id: UUID) -> None:
+    """Creating or joining a team is how a user *becomes* a participant of an event - the only
+    other place a participant EventRole is ever created is fixture/demo import, so without this
+    a real signup could never pass the `participant` role checks on submissions afterward (or,
+    before this fix, even create/join the team in the first place - see the `participant` role
+    checks on `create_new_team`/`join_existing_team`, which used to require already holding the
+    role they're meant to grant)."""
+    existing = await db.execute(
+        select(EventRole).where(
+            EventRole.user_id == str(user_id),
+            EventRole.event_id == str(event_id),
+            EventRole.role == EventRoleType.PARTICIPANT,
+        )
+    )
+    if existing.scalar_one_or_none() is None:
+        db.add(EventRole(user_id=str(user_id), event_id=str(event_id), role=EventRoleType.PARTICIPANT))
+        await db.flush()
 
 
 async def is_team_formation_active(db: AsyncSession, event_id: UUID) -> bool:
@@ -55,6 +74,7 @@ async def create_team(
     )
     db.add(membership)
     await db.flush()
+    await _grant_participant_role(db, event_id, creator_id)
 
     return team
 
@@ -106,6 +126,7 @@ async def join_team(
     )
     db.add(membership)
     await db.flush()
+    await _grant_participant_role(db, team.event_id, user_id)
 
     return membership
 

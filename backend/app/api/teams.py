@@ -28,9 +28,11 @@ async def create_new_team(
     event_id: UUID,
     team_data: TeamCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role_global(["participant"])),
+    current_user: User = Depends(get_current_user),
 ):
-    """Create a new team (participant only)."""
+    """Create a new team. Any signed-in user may create one - creating a team is how you *become*
+    a participant of this event (create_team grants the role), so requiring the role first would
+    make it impossible for anyone to ever create their first team."""
     try:
         team = await create_team(
             db=db,
@@ -49,9 +51,11 @@ async def join_existing_team(
     team_id: UUID,
     join_data: TeamJoin,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role_global(["participant"])),
+    current_user: User = Depends(get_current_user),
 ):
-    """Join a team using invite code (participant only)."""
+    """Join a team using its invite code. Any signed-in user may attempt this - joining is how
+    you *become* a participant of this event (join_team grants the role); the invite code and
+    team-formation-window checks are the real gate, enforced in the service layer."""
     try:
         membership = await join_team(
             db=db,
@@ -122,9 +126,12 @@ async def get_team_detail(
 async def get_my_teams(
     event_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_role_global(["participant"])),
+    current_user: User = Depends(get_current_user),
 ):
-    """Get teams the current user belongs to, with members."""
+    """Get teams the current user belongs to, with members (empty list if none - this is how a
+    first-time participant discovers they have no team yet, so it must not require already
+    holding a participant role: the query is scoped to the caller's own id and this event, so
+    any authenticated user can safely ask "do I have a team here?" without seeing anyone else's."""
     from sqlalchemy import select as sa_select
     from app.models.submission import Submission
     from app.models.user import User as UserModel
