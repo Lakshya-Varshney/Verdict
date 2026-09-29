@@ -25,7 +25,7 @@ function Sealed() {
   );
 }
 
-function Board({ d, staff, mode, hover, setHover }: { d: Results; staff: boolean; mode: "raw" | "norm"; hover: string | null; setHover: (s: string | null) => void }) {
+function Board({ d, staff, mode, hover, setHover, maxScale }: { d: Results; staff: boolean; mode: "raw" | "norm"; hover: string | null; setHover: (s: string | null) => void; maxScale: number }) {
   const rank = (r: Results["rows"][number]) => (mode === "norm" && r.norm_rank ? r.norm_rank : r.raw_rank);
   return (
     <div className="relative" style={{ height: d.rows.length * ROW }}>
@@ -38,7 +38,7 @@ function Board({ d, staff, mode, hover, setHover }: { d: Results; staff: boolean
             <SplitFlap text={String(rk).padStart(2, "0")} size={1.6} color={podium ? "amber" : "ivory"} scramble stagger={30} />
             <div className="min-w-0 flex-1"><div className="truncate font-serif text-[1.65rem] italic leading-none">{r.name}</div><div className="label mt-1.5 truncate">{r.team_name}{r.track_name ? ` · ${r.track_name}` : ""}</div></div>
             {staff && <div className="hidden w-36 lg:block"><ScoreStrip raw={r.scores.map((s) => s.raw)} norm={mode === "norm" ? r.scores.map((s) => s.norm) : undefined} /></div>}
-            <div className="hidden w-32 sm:block"><div className="relative h-2 bg-line"><i className="absolute inset-y-0 left-0 bg-amber transition-all duration-[900ms]" style={{ width: `${(v / 5) * 100}%`, boxShadow: "0 0 12px var(--amber)" }} /></div></div>
+            <div className="hidden w-32 sm:block"><div className="relative h-2 bg-line"><i className="absolute inset-y-0 left-0 bg-amber transition-all duration-[900ms]" style={{ width: `${Math.min((v / maxScale) * 100, 100)}%`, boxShadow: "0 0 12px var(--amber)" }} /></div></div>
             <span className="mono w-12 text-right text-[12.5px]">{v.toFixed(2)}</span>
             <span className="mono w-11 text-right text-[11px]" style={{ color: mode === "norm" && delta ? (delta > 0 ? "var(--ok)" : "var(--signal)") : "transparent" }}>{delta > 0 ? "▲" : delta < 0 ? "▼" : "•"}{Math.abs(delta) || ""}</span>
           </div>
@@ -53,11 +53,17 @@ function Inner() {
   const qc = useQueryClient(); const act = useAct();
   const ev = useQuery({ queryKey: ["event", id], queryFn: () => api.events.get(id) });
   const q = useQuery({ queryKey: ["results", id, role], queryFn: () => api.judging.results(id), retry: false });
+  const critQ = useQuery({ queryKey: ["criteria", id], queryFn: () => api.judging.criteria(id) });
   const [m, setMode] = useState<"raw" | "norm" | null>(null); const [hover, setHover] = useState<string | null>(null); const [pub, setPub] = useState(false);
   if (q.isLoading) return <LoadingBlock rows={5} />;
   if (q.error instanceof ApiError && q.error.status === 403) return <Sealed />;
   if (q.error) return <ErrorState error={q.error} retry={() => q.refetch()} />;
   const d = q.data!; const mode = m ?? (d.normalized ? "norm" : "raw"); const reviews = d.rows.reduce((a, r) => a + r.judge_count, 0);
+  // The leaderboard bar's fill assumes a max possible weighted score - derive it from the
+  // rubric's own per-criterion scale (weight * max_score) instead of a hardcoded value, since
+  // criteria can be scored on any scale (this event uses 1-10, not the visual default of 5).
+  const crit = critQ.data ?? []; const critWeight = crit.reduce((a, c) => a + c.weight, 0);
+  const maxScale = critWeight ? crit.reduce((a, c) => a + c.weight * c.max_score, 0) / critWeight : 10;
   const normalize = async () => { const r = await act(() => api.judging.normalize(id), "Scores normalised — see the rank shifts"); if (r) { qc.setQueryData(["results", id, role], r); setMode("norm"); } };
   const publish = async () => { setPub(false); const r = await act(() => api.events.update(id, { status: "published" }), "Results published"); if (r) { qc.invalidateQueries({ queryKey: ["event", id] }); qc.invalidateQueries({ queryKey: ["events"] }); qc.invalidateQueries({ queryKey: ["results", id] }); } };
   const moved = d.rows.filter((r) => r.norm_rank && r.norm_rank !== r.raw_rank).length;
@@ -80,7 +86,7 @@ function Inner() {
             <div>
               <div className="mb-5 flex flex-wrap items-center justify-between gap-4"><span className="label">Leaderboard</span>
                 {d.normalized ? <Segmented value={mode} onChange={setMode} options={[{ value: "raw", label: "Raw average" }, { value: "norm", label: "Normalised" }]} /> : staff ? <span className="chip chip-amber">raw only — normalise to correct judge bias</span> : null}</div>
-              <Board d={d} staff={staff} mode={mode} hover={hover} setHover={setHover} />
+              <Board d={d} staff={staff} mode={mode} hover={hover} setHover={setHover} maxScale={maxScale} />
             </div>
             {staff && d.judges.length > 0 && (
               <div className="panel ticks space-y-6 p-6 xl:sticky xl:top-[140px]">
