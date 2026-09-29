@@ -117,7 +117,7 @@ export function Segmented<T extends string>({ options, value, onChange }: { opti
     <div className="inline-flex max-w-full overflow-x-auto border border-line2" role="tablist">
       {options.map((o) => (
         <button key={o.value} role="tab" aria-selected={value === o.value} onClick={() => onChange(o.value)} title={o.hint}
-          className={cn("px-4 py-2.5 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors", value === o.value ? "bg-amber text-[var(--on-amber)] font-semibold" : "text-ink2 hover:text-ink")}>{o.label}</button>
+          className={cn("px-4 py-2.5 font-mono text-[10.5px] uppercase tracking-[0.12em] transition-colors", value === o.value ? "bg-amber !text-[var(--on-amber)] font-semibold" : "text-ink2 hover:text-ink")}>{o.label}</button>
       ))}
     </div>
   );
@@ -149,5 +149,8 @@ export function Stat({ label, value, sub, accent }: { label: string; value: Reac
 
 export function Kbd({ children }: { children: ReactNode }) { return <span className="kbd">{children}</span>; }
 export function SectionLabel({ n, children }: { n?: string; children: ReactNode }) {
-  return <div className="label mb-5 flex items-center gap-3"><span className="text-amberink">{n ? `[ ${n} ]` : "//"}</span><span>{children}</span><span className="rule flex-1" /></div>;
+  // an <h2>, not a <div>: this renders as every page's visual section title, so any real <h3>
+  // beneath it was otherwise invisible to the heading outline, making <h1> appear to skip
+  // straight to <h3> for screen-reader/keyboard heading navigation.
+  return <h2 className="label mb-5 flex items-center gap-3"><span className="text-amberink">{n ? `[ ${n} ]` : "//"}</span><span>{children}</span><span className="rule flex-1" /></h2>;
 }

@@ -12,7 +12,7 @@ export default function Embed() {
   useEffect(() => { const t = new URLSearchParams(location.search).get("theme"); if (t === "paper") document.documentElement.dataset.theme = "paper"; }, []);
   const q = useQuery({ queryKey: ["embed", id], queryFn: () => api.data.embed(id) });
   return (
-    <div className="relative z-10 min-h-screen p-5">
+    <main className="relative z-10 min-h-screen p-5">
       {q.isLoading ? <LoadingBlock /> : q.error || !q.data ? <ErrorState error={q.error} /> : (
         <>
           <div className="mb-5 flex items-baseline justify-between"><h1 className="display text-4xl">{q.data.event.name} <em>gallery</em></h1><span className="label">{q.data.items.length} projects</span></div>
@@ -27,6 +27,6 @@ export default function Embed() {
           <div className="label mt-6 text-center">Powered by {BRAND.name}</div>
         </>
       )}
-    </div>
+    </main>
   );
 }

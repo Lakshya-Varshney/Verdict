@@ -180,7 +180,7 @@ $ tail audit.log
         <div className="grid gap-px border border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
           {FEATURES.map((f, i) => (
             <div key={f.t} className="fade-up group relative bg-bg2 p-7 transition-colors hover:bg-panel" style={{ ["--i" as string]: i } as React.CSSProperties}>
-              <div className="mb-8 grid h-11 w-11 place-items-center border border-line2 text-amberink transition-colors group-hover:border-amber group-hover:bg-amber group-hover:text-[var(--on-amber)]"><f.icon size={19} /></div>
+              <div className="mb-8 grid h-11 w-11 place-items-center border border-line2 text-amberink transition-colors group-hover:border-amber group-hover:bg-amber group-hover:!text-[var(--on-amber)]"><f.icon size={19} /></div>
               <h3 className="display text-[2rem]">{f.t}</h3><p className="mt-2 text-[14px] text-ink2">{f.d}</p>
             </div>
           ))}

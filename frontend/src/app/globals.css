@@ -15,7 +15,7 @@
   --line2: #3d3829;
   --ink: #f2ebd9;
   --ink2: #b9b19c;
-  --ink3: #7f7868;
+  --ink3: #847d6e; /* was #7f7868: 4.39:1 on --bg2, just under WCAG AA's 4.5:1 for small text */
   --amber: #ffb81c;
   --amber-ink: #ffb81c;
   --on-amber: #16110a;
@@ -36,12 +36,12 @@
   --line2: #b3a888;
   --ink: #17130b;
   --ink2: #524a37;
-  --ink3: #857d66;
+  --ink3: #67614f; /* was #857d66: ~3.1:1 on --bg, under WCAG AA's 4.5:1 for small text */
   --amber: #e89400;
   --amber-ink: #9a5a00;
   --on-amber: #17110a;
-  --signal: #d0380d;
-  --ok: #3b7a17;
+  --signal: #a22b0a; /* was #d0380d: ~3.1:1 on light chip backgrounds */
+  --ok: #336b14; /* was #3b7a17: ~3.7:1 on light chip backgrounds */
   --cool: #0c7466;
   --grid: rgba(23, 19, 11, 0.06);
   --grain: 0.16;
@@ -169,8 +169,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn:hover:not([disabled]) { border-color: var(--amber); transform: translateY(-1px); color: var(--amber-ink); }
 .btn:active:not([disabled]) { transform: translateY(1px); }
 .btn[disabled] { opacity: 0.4; cursor: not-allowed; }
-.btn-primary { background: var(--amber); border-color: var(--amber); color: var(--on-amber); font-weight: 600; }
-.btn-primary:hover:not([disabled]) { color: var(--on-amber); box-shadow: 0 10px 36px -10px var(--amber); background: color-mix(in srgb, var(--amber) 92%, white); }
+/* !important on color: Tailwind's build puts this rule in `@layer components`, and a layered
+   rule always loses to the page's unlayered `body { color: var(--ink) }` regardless of
+   specificity (CSS Cascade Layers spec) - without it, "amber" buttons render body's light ink
+   text on an amber background at ~1.5:1 contrast instead of the intended --on-amber. */
+.btn-primary { background: var(--amber); border-color: var(--amber); color: var(--on-amber) !important; font-weight: 600; }
+.btn-primary:hover:not([disabled]) { color: var(--on-amber) !important; box-shadow: 0 10px 36px -10px var(--amber); background: color-mix(in srgb, var(--amber) 92%, white); }
 .btn-danger { border-color: color-mix(in srgb, var(--signal) 60%, transparent); color: var(--signal); }
 .btn-danger:hover:not([disabled]) { background: var(--signal); border-color: var(--signal); color: #fff; }
 .btn-sm { padding: 0.5rem 0.75rem; font-size: 10px; }
@@ -203,7 +207,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: transparent; white-space: nowrap;
 }
 button.chip:hover { border-color: var(--amber); color: var(--ink); }
-.chip-on { background: var(--amber); border-color: var(--amber); color: var(--on-amber); font-weight: 600; }
+.chip-on { background: var(--amber); border-color: var(--amber); color: var(--on-amber) !important; font-weight: 600; } /* see .btn-primary comment above */
 .chip-amber { color: var(--amber-ink); border-color: color-mix(in srgb, var(--amber) 50%, transparent); background: color-mix(in srgb, var(--amber) 10%, transparent); }
 .chip-signal { color: var(--signal); border-color: color-mix(in srgb, var(--signal) 55%, transparent); background: color-mix(in srgb, var(--signal) 10%, transparent); }
 .chip-ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
@@ -293,7 +297,7 @@ button.chip:hover { border-color: var(--amber); color: var(--ink); }
 .key:hover { transform: translateY(-2px); border-color: var(--amber); }
 .key:active, .key.on { transform: translateY(5px); box-shadow: 0 1px 0 -1px var(--line), 0 4px 10px -6px var(--shadow), inset 0 2px 6px rgba(0,0,0,.35); }
 .key.on { background: linear-gradient(180deg, color-mix(in srgb, var(--amber) 92%, white), var(--amber)); border-color: var(--amber); box-shadow: 0 1px 0 -1px #8a5d00, 0 0 34px -6px var(--amber), inset 0 2px 6px rgba(0,0,0,.25); }
-.key.on .n, .key.on .t { color: var(--on-amber); }
+.key.on .n, .key.on .t { color: var(--on-amber) !important; } /* see .btn-primary comment above */
 
 /* ---------- misc ---------- */
 .crt { position: relative; }

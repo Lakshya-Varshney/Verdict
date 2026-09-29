@@ -37,7 +37,7 @@ export default function Overview() {
           {EVENT_STATUSES.slice(0, 5).map((s, i) => (
             <div key={s} className={cn("bg-bg2 p-4", i === idx && "!bg-[color-mix(in_srgb,var(--amber)_10%,var(--bg2))]")}>
               <div className="flex items-center justify-between"><span className={cn("cond text-3xl", i === idx ? "amber" : i < idx ? "text-ink2" : "text-ink3")}>{String(i + 1).padStart(2, "0")}</span>{i < idx && <span className="text-ok text-xs">✓</span>}{i === idx && <span className="pulse-dot amber" />}</div>
-              <div className="label mt-3">{STAGE_LABEL[s]}</div>
+              <div className={cn("label mt-3", i === idx && "!text-ink2")}>{STAGE_LABEL[s]}</div>
             </div>
           ))}
         </div>

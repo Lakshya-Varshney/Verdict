@@ -38,7 +38,7 @@ function Inner() {
             </div>
             <form onSubmit={invite} className="panel space-y-4 p-6"><SectionLabel>Judging panel</SectionLabel>
               <ul className="space-y-2">{load.map((j) => <li key={j.id} onMouseEnter={() => setHover(j.id)} onMouseLeave={() => setHover(null)} className="flex items-center justify-between border border-line px-3 py-2 text-[13.5px] transition-colors hover:border-amber"><span>{j.name}</span><span className="mono text-[11px] text-ink3">{j.n} projects</span></li>)}{!judges.length && <li className="text-sm text-ink3">No judges yet.</li>}</ul>
-              <div className="flex gap-2"><input className="input" type="email" placeholder="judge@email.com" value={email} onChange={(x) => setEmail(x.target.value)} aria-label="Judge email" /><button className="btn btn-icon" disabled={!email}><UserPlus size={15} /></button></div>
+              <div className="flex gap-2"><input className="input" type="email" placeholder="judge@email.com" value={email} onChange={(x) => setEmail(x.target.value)} aria-label="Judge email" /><button className="btn btn-icon" disabled={!email} aria-label="Add judge"><UserPlus size={15} /></button></div>
             </form>
           </div>
           <div className="panel p-6"><div className="mb-4 flex items-center justify-between"><SectionLabel>Assignment graph</SectionLabel></div>
